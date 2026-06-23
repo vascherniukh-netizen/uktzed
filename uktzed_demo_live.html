@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>УКТ ЗЕД · класифікатор</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink-900:#0b0e13;--ink-800:#11151c;--ink-700:#161b22;--ink-600:#1b222c;--raise:#212a35;--line:#262f3b;
+    --text:#e6edf3;--muted:#8b98a5;--faint:#5b6673;
+    --search:#4c8dff;--clarify:#e7ad44;--verify:#37c79a;--refuse:#e0607a;--code:#9bd1ff;
+    --display:'Unbounded',system-ui,sans-serif;--body:'Manrope',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:
+      radial-gradient(900px 500px at 82% -8%,rgba(76,141,255,.10),transparent 60%),
+      radial-gradient(700px 460px at 8% 108%,rgba(55,199,154,.07),transparent 55%),var(--ink-900);
+    color:var(--text);font-family:var(--body);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:780px;margin:0 auto;padding:30px 20px 40px;min-height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;letter-spacing:.04em;font-size:15px}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:var(--verify);box-shadow:0 0 0 4px rgba(55,199,154,.16)}
+  .badge{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);padding:5px 9px;border-radius:999px}
+  .badge.off{color:var(--refuse);border-color:rgba(224,96,122,.4)}
+  h1{font-family:var(--display);font-weight:800;font-size:clamp(22px,4vw,32px);line-height:1.08;margin:0 0 8px;letter-spacing:-.01em}
+  h1 em{font-style:normal;color:var(--verify)}
+  .lede{font-size:14.5px;color:var(--muted);margin:0 0 18px;max-width:58ch}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .chip{font-family:var(--body);font-size:13px;color:var(--muted);background:var(--ink-600);border:1px solid var(--line);
+    border-radius:999px;padding:7px 13px;cursor:pointer;transition:.15s}
+  .chip:hover{color:var(--text);border-color:#3a4858;background:var(--raise)}
+  .chip:focus-visible{outline:2px solid var(--search);outline-offset:2px}
+
+  .feed{flex:1;display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+  .msg{max-width:92%;animation:rise .3s both}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .msg.user{align-self:flex-end}
+  .msg.user .b{background:var(--search);color:#04132e;border-radius:13px 13px 4px 13px;padding:10px 14px;font-weight:600;font-size:14.5px}
+  .msg.bot .b{background:var(--ink-700);border:1px solid var(--line);border-radius:13px 13px 13px 4px;padding:13px 15px;font-size:14.5px}
+  .msg.bot.err .b{border-color:rgba(224,96,122,.45);background:rgba(224,96,122,.06)}
+  .b h2{font-family:var(--display);font-size:14px;font-weight:600;margin:2px 0 8px;color:var(--verify)}
+  .b strong{color:var(--text);font-weight:700}
+  .b blockquote{margin:10px 0 0;padding:8px 12px;border-left:2px solid var(--clarify);color:var(--muted);font-size:13px}
+  .b table{border-collapse:collapse;margin:6px 0;width:100%}
+  .b td{border:1px solid var(--line);padding:6px 10px;font-size:13.5px}
+  .b td:first-child{color:var(--muted);font-family:var(--mono);font-size:12px;white-space:nowrap}
+  .b code,.b .mono{font-family:var(--mono);color:var(--code)}
+  .typing{display:inline-flex;gap:4px;padding:4px 0}
+  .typing i{width:7px;height:7px;border-radius:50%;background:var(--faint);animation:tp 1s infinite}
+  .typing i:nth-child(2){animation-delay:.15s} .typing i:nth-child(3){animation-delay:.3s}
+  @keyframes tp{0%,100%{opacity:.3;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+
+  .barwrap{position:sticky;bottom:0;background:linear-gradient(180deg,transparent,var(--ink-900) 28%);padding-top:8px}
+  .bar{display:flex;gap:10px;background:var(--ink-700);border:1px solid var(--line);border-radius:14px;padding:8px;align-items:flex-end}
+  .bar textarea{flex:1;background:transparent;border:0;color:var(--text);font-family:var(--body);font-size:15px;
+    resize:none;outline:none;max-height:120px;padding:8px 10px;line-height:1.4}
+  .bar textarea::placeholder{color:var(--faint)}
+  .bar button{font-family:var(--body);font-weight:700;font-size:14px;color:#06210f;background:var(--verify);
+    border:0;border-radius:10px;padding:0 18px;height:42px;cursor:pointer;transition:filter .15s}
+  .bar button:hover{filter:brightness(1.08)} .bar button:disabled{opacity:.4;cursor:default}
+  .bar button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  footer{margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--faint);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="dot"></span>РЕГЛА</div>
+    <div id="status" class="badge">зʼєднання…</div>
+  </header>
+
+  <h1>Код для митної декларації, <em>який не вигадано</em></h1>
+  <p class="lede">Опишіть товар живою мовою. Агент підбере код УКТ ЗЕД, перепитає, якщо потрібно, і поверне результат лише після перевірки, що код існує.</p>
+
+  <div class="chips" id="chips">
+    <button class="chip">жіноча вовняна сукня</button>
+    <button class="chip">димогарний котел</button>
+    <button class="chip">смартфон</button>
+    <button class="chip">підводний акустичний маяк-пінгер</button>
+  </div>
+
+  <div class="feed" id="feed"></div>
+
+  <div class="barwrap">
+    <div class="bar">
+      <textarea id="inp" rows="1" placeholder="Опишіть товар…" aria-label="Опис товару"></textarea>
+      <button id="send">Підібрати</button>
+    </div>
+    <footer>
+      <span>Джерело: Закон 2697-IX · класифікація за ст. 69 МКУ</span>
+      <span id="ses"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+  // База API: порожня = той самий origin (коли сторінку віддає FastAPI).
+  // Для локального тесту з file:// постав, напр., 'http://127.0.0.1:8000'.
+  const API_BASE = '';
+  const feed = document.getElementById('feed');
+  const inp = document.getElementById('inp');
+  const send = document.getElementById('send');
+  const status = document.getElementById('status');
+  let sessionId = null, busy = false;
+
+  // health-пінг
+  fetch(API_BASE + '/health').then(r=>r.json()).then(h=>{
+    status.textContent = (h.dense ? 'e5 · ' : 'лексика · ') + h.leaves + ' кодів';
+  }).catch(()=>{ status.textContent='сервер недоступний'; status.classList.add('off'); });
+
+  // markdown-lite → HTML (жирний, заголовки ##, цитати >, прості таблиці |..|)
+  function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+  function md(t){
+    const lines = t.split('\n'); let out=[], i=0;
+    while(i<lines.length){
+      let l=lines[i];
+      if(/^\s*\|.*\|\s*$/.test(l)){                 // таблиця
+        let rows=[];
+        while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){
+          let cells=lines[i].trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+          if(!cells.every(c=>/^[-:\s]*$/.test(c))) rows.push(cells); // пропускаємо |---|
+          i++;
+        }
+        out.push('<table>'+rows.map(r=>'<tr>'+r.map(c=>'<td>'+inline(c)+'</td>').join('')+'</tr>').join('')+'</table>');
+        continue;
+      }
+      if(/^\s*##\s+/.test(l)){ out.push('<h2>'+inline(l.replace(/^\s*##\s+/,''))+'</h2>'); i++; continue; }
+      if(/^\s*>\s?/.test(l)){
+        let q=[]; while(i<lines.length && /^\s*>\s?/.test(lines[i])){ q.push(lines[i].replace(/^\s*>\s?/,'')); i++; }
+        out.push('<blockquote>'+inline(q.join(' '))+'</blockquote>'); continue;
+      }
+      if(l.trim()==='---' || l.trim()===''){ i++; continue; }
+      out.push('<div>'+inline(l)+'</div>'); i++;
+    }
+    return out.join('');
+  }
+  function inline(s){
+    s = esc(s).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    s = s.replace(/\b(\d{4}\s?\d{2}\s?\d{2}\s?\d{2})\b/g,'<span class="mono">$1</span>'); // коди
+    return s;
+  }
+
+  function bubble(role, html, err){
+    const m=document.createElement('div'); m.className='msg '+role+(err?' err':'');
+    const b=document.createElement('div'); b.className='b'; b.innerHTML=html; m.appendChild(b);
+    feed.appendChild(m); m.scrollIntoView({behavior:'smooth',block:'end'}); return b;
+  }
+
+  async function ask(text){
+    if(busy || !text.trim()) return;
+    busy=true; send.disabled=true;
+    bubble('user', esc(text));
+    inp.value=''; autosize();
+    const wait=bubble('bot','<div class="typing"><i></i><i></i><i></i></div>');
+    try{
+      const r=await fetch(API_BASE+'/classify',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({message:text, session_id:sessionId})});
+      const data=await r.json();
+      if(!r.ok) throw new Error(data.detail||('HTTP '+r.status));
+      sessionId=data.session_id;
+      document.getElementById('ses').textContent='сесія '+sessionId.slice(0,8);
+      wait.parentElement.remove();
+      bubble('bot', md(data.reply||'(порожня відповідь)'));
+    }catch(e){
+      wait.parentElement.remove();
+      bubble('bot','<strong>Помилка зʼєднання.</strong> '+esc(e.message)+'<br>Перевірте, що сервер запущено.', true);
+    }finally{ busy=false; send.disabled=false; inp.focus(); }
+  }
+
+  function autosize(){ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,120)+'px'; }
+  inp.addEventListener('input',autosize);
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); ask(inp.value); } });
+  send.addEventListener('click',()=>ask(inp.value));
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>ask(c.textContent)));
+})();
+</script>
+</body>
+</html>
