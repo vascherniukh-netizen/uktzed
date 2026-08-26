@@ -35,6 +35,15 @@ LABEL_RE = re.compile(r'^(Розділ\s+[IVXLCDM]+|Група\s+\d+|Глава\
 def tokenize(text):
     return [t for t in TOKEN_RE.findall(text.lower()) if t not in STOP and len(t) > 1]
 
+def _stems(tokens):
+    """Токени + 5-літерні стеми (з маркером ~) для морфологічної стійкості BM25."""
+    out = []
+    for t in tokens:
+        out.append(t)
+        if len(t) > 5:
+            out.append('~' + t[:5])
+    return out
+
 def clean_chunk(chunk):
     # прибираємо службові префікси "Розділ XI " / "Група 62 ", лишаючи назви
     parts = [LABEL_RE.sub('', p).strip() for p in chunk.split(' / ')]
@@ -140,6 +149,14 @@ def rrf(*score_arrays, k=60, weights=None, top_n=200):
             fused[idx] += w / (k + rank + 1)
     return fused
 
+def _w(env, default):
+    """Вага ранкера з env (для експериментів), інакше — дефолт."""
+    try:
+        return float(os.environ[env])
+    except (KeyError, ValueError):
+        return default
+
+
 # ---------- Ретривер ----------
 class UktzedRetriever:
     def __init__(self, jsonl, use_dense=False):
@@ -147,8 +164,51 @@ class UktzedRetriever:
         self.leaves = [n for n in self.nodes if n.get('is_leaf')]
         self.canon = {n['code']: n for n in self.nodes if n.get('code')}  # верифікація
         texts = [clean_chunk(n['chunk']) for n in self.leaves]
-        self.bm25 = BM25([tokenize(t) for t in texts])
+        # Побутові/торгові синоніми по 4-значних позиціях (uktzed_synonyms.json,
+        # генеруються uktzed_enrich.py). Збагачують ЛИШЕ лексичні індекси:
+        # dense-тексти лишаються без змін, тож e5-кеш не інвалідовується.
+        syn_path = os.path.join(os.path.dirname(os.path.abspath(jsonl)), 'uktzed_synonyms.json')
+        self.synonyms = {}
+        if os.path.exists(syn_path):
+            try:
+                raw = json.load(open(syn_path, encoding='utf-8'))
+                self.synonyms = {k: v for k, v in raw.items() if v}   # порожні позиції — геть
+                n_terms = sum(len(v) for v in self.synonyms.values())
+                if n_terms:
+                    print(f"  синоніми: {len(self.synonyms)} позицій, {n_terms} термінів")
+                else:
+                    print(f"  ⚠ {os.path.basename(syn_path)} існує, але ПОРОЖНІЙ — "
+                          f"індексую без синонімів (перегенеруй uktzed_enrich.py)")
+                    self.synonyms = {}
+            except Exception as e:
+                print(f"  синоніми не завантажились ({e}) — індексую без них")
+        # Архітектура лексики (заміряно на сіді 100 кейсів, 2026-08-26):
+        #  · BM25 — стемований: кожен токен >5 літер дублюється 5-літерним стемом
+        #    з маркером «~». Ловить словозміну («сукня»→«сукні», «флешка»→«флешки»).
+        #    Сам по собі стемінг: top-1 41%→49% без втрати recall.
+        #  · Синоніми (uktzed_synonyms.json, побутові назви позицій) глюються
+        #    ТОКЕНАМИ (дедуп) лише в BM25 — там зайві токени важать тільки коли їх
+        #    питають. У char їх клеїти НЕ МОЖНА: розмивається косинус n-грам
+        #    (кейс «письмовий стіл» падав з 1-го на 5644-те місце).
+        #  · char — тільки офіційний текст (точність).
+        #  · syn_char — окремий ранкер по синонімах з малою вагою: морфологія жаргону.
+        # Разом: recall@20 78%→85%, top-1 41%→52%, MRR 0.490→0.603 (лексика).
+        syn_tok = []
+        for n in self.leaves:
+            seen, toks = set(), []
+            for term in self.synonyms.get(n['code'][:4], []):
+                for tk in tokenize(term):
+                    if tk not in seen:
+                        seen.add(tk); toks.append(tk)
+            syn_tok.append(toks)
+        self.bm25 = BM25([_stems(tokenize(t) + st) for t, st in zip(texts, syn_tok)])
         self.char = CharIndex(texts)
+        self.syn_char = None
+        if any(syn_tok):
+            try:
+                self.syn_char = CharIndex([' '.join(st) for st in syn_tok])
+            except ValueError:                          # словник закороткий для n-грам
+                self.syn_char = None
         self.dense = None
         if use_dense:
             try:
@@ -159,11 +219,23 @@ class UktzedRetriever:
                 self.dense = None
 
     def search(self, query, top_k=20):
-        arrays  = [self.bm25.scores(tokenize(query)), self.char.scores(query)]
-        weights = [0.7, 0.4]                       # лексика — допоміжна
+        arrays = [self.bm25.scores(_stems(tokenize(query))), self.char.scores(query)]
         if self.dense is not None:
+            # char — основний ранкер, e5 — страховка для описових запитів без лексичного
+            # перетину з тарифом. Заміряно на сіді 100 кейсів (uktzed_tune.py --holdout):
+            # char-соло b'є старі ваги 0.7/0.4/1.3 по top-5 на 11 в.п.; e5 з малою вагою
+            # додає +3 кейси (вино PDO, авто за обʼємом, причіп), з великою — псує ранжування.
+            weights = [_w('UKTZED_W_BM25', 0.4), _w('UKTZED_W_CHAR', 1.3)]
             arrays.append(self.dense.scores(query))
-            weights.append(1.3)                    # e5 — основний ранкер
+            weights.append(_w('UKTZED_W_DENSE', 0.7))
+        else:
+            # без e5 баланс інший: char n-gram ловить словозміну ("сукня"→"сукні"),
+            # BM25 на точних формах промахується. Заміряно на uktzed_eval_seed.jsonl:
+            # 0.7/0.4 → recall@20 66.7%, top-1 40.0%; 0.5/1.3 → 80.0% / 46.7%.
+            weights = [_w('UKTZED_W_BM25', 0.5), _w('UKTZED_W_CHAR', 1.3)]
+        if self.syn_char is not None:
+            arrays.append(self.syn_char.scores(query))
+            weights.append(_w('UKTZED_W_SYNCHAR', 0.5))
         fused = rrf(*arrays, weights=weights)
         if not fused.any():          # жоден ранкер нічого не знайшов → не вгадуємо
             return []

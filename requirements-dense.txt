@@ -1,0 +1,4 @@
+# Опційно: режим --dense (e5-ембединги). Тягне torch, ~2.5 ГБ.
+# Ставити ПІСЛЯ requirements.txt і лише коли базовий режим уже працює:
+#     pip install -r requirements-dense.txt
+sentence-transformers>=2.7

@@ -1,0 +1,29 @@
+# Секрети — НІКОЛИ в репозиторій
+.env
+*.key
+ANTHROPIC_API_KEY*
+
+# Python-сміття
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Кеш моделей HuggingFace
+.cache/
+huggingface/
+
+# Локальне сміття ОС
+Thumbs.db
+.DS_Store
+
+# УВАГА: uktzed_e5_cache.npy НЕ ігноруємо — він МАЄ потрапити в репо,
+# щоб сервер не рахував ембединги годину при кожному деплої.
+
+# Архіви — вихідний zip з GitHub і будь-які інші
+uktzed-main.zip
+*.zip
+
+# Робочі артефакти прогонів (не для репо)
+_diag.json
+enrich_run*.log

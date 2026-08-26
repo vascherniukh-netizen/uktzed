@@ -12,11 +12,13 @@
 Кожна сесія — окрема історія розмови; інстанси тримаються в памʼяті
 (для тесту з друзями достатньо; для продакшну — винести у сховище).
 
-Залежності: fastapi, uvicorn, anthropic (+ ретривер тягне sklearn/numpy, e5 — опційно).
-    pip install fastapi "uvicorn[standard]" anthropic
+Залежності: fastapi, uvicorn, openai (+ ретривер тягне sklearn/numpy, e5 — опційно).
+    pip install fastapi "uvicorn[standard]" openai
+
+LLM-провайдер: DeepSeek (OpenAI-сумісний API).
 
 Запуск (Windows cmd):
-    set ANTHROPIC_API_KEY=sk-ant-...
+    set DEEPSEEK_API_KEY=sk-...
     set UKTZED_DENSE=1            # увімкнути e5 (за наявності моделі+кешу)
     python -m uvicorn uktzed_api:app --host 0.0.0.0 --port 8000
 """
@@ -27,7 +29,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from uktzed_retriever import UktzedRetriever
-from uktzed_agent import UktzedAgent
+from uktzed_agent import UktzedAgent, MODEL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 JSONL = os.path.join(HERE, "uktzed_nodes.jsonl")
@@ -42,11 +44,12 @@ STATE = {"retriever": None, "client": None, "sessions": {}}
 
 
 def _client():
-    from anthropic import Anthropic
-    key = os.environ.get("ANTHROPIC_API_KEY")
+    from openai import OpenAI
+    from uktzed_agent import BASE_URL
+    key = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("UKTZED_API_KEY")
     if not key:
-        raise HTTPException(500, "На сервері не задано ANTHROPIC_API_KEY")
-    return Anthropic(api_key=key)
+        raise HTTPException(500, "На сервері не задано DEEPSEEK_API_KEY")
+    return OpenAI(api_key=key, base_url=BASE_URL)
 
 
 @app.on_event("startup")
@@ -83,7 +86,8 @@ def classify(inp: ClassifyIn):
 @app.get("/health")
 def health():
     r = STATE["retriever"]
-    return {"ok": r is not None, "dense": bool(r and r.dense), "leaves": len(r.leaves) if r else 0}
+    return {"ok": r is not None, "dense": bool(r and r.dense),
+            "leaves": len(r.leaves) if r else 0, "model": MODEL}
 
 
 @app.get("/")
