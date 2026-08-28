@@ -65,10 +65,32 @@
   .bar button:focus-visible{outline:2px solid #fff;outline-offset:2px}
   footer{margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--faint);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 
+
+  /* --- легкість: пошуковик --- */
+  .bar{border-radius:999px;padding:6px 6px 6px 12px;box-shadow:0 10px 34px rgba(0,0,0,.35)}
+  .bar button{border-radius:999px;padding:0 20px}
+  .msg.bot .b{border:0;background:var(--ink-700);border-radius:16px 16px 16px 5px;box-shadow:0 1px 8px rgba(0,0,0,.22)}
+  .msg.bot.err .b{border:1px solid rgba(224,96,122,.45)}
+  .msg.user .b{border-radius:16px 16px 5px 16px}
+  .feed{gap:16px}
+  header{margin-bottom:26px}
+  .b table{background:transparent}
+  .b td{border-color:rgba(255,255,255,.07)}
+
+  /* стартовий екран: усе по центру, поле — герой */
+  body.start .wrap{justify-content:center;padding-bottom:14vh}
+  body.start .feed{display:none}
+  body.start h1{text-align:center;font-size:clamp(26px,5vw,40px);margin-bottom:10px}
+  body.start .lede{text-align:center;margin:0 auto 26px}
+  body.start .chips{order:4;justify-content:center;margin-top:16px}
+  body.start .barwrap{order:3;position:static;background:none;padding-top:0}
+  body.start .bar{max-width:600px;margin:0 auto;width:100%}
+  body.start footer{max-width:600px;margin:10px auto 0;width:100%;justify-content:center}
+  .wrap{transition:justify-content .3s}
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
-<body>
+<body class="start">
 <div class="wrap">
   <header>
     <div class="brand"><span class="dot"></span>РЕГЛА</div>
@@ -156,6 +178,7 @@
   async function ask(text){
     if(busy || !text.trim()) return;
     busy=true; send.disabled=true;
+    document.body.classList.remove('start');
     bubble('user', esc(text));
     inp.value=''; autosize();
     const wait=bubble('bot','<div class="typing"><i></i><i></i><i></i></div>');
